@@ -21,3 +21,6 @@ mcutils = "mcutils.mcutils:main"
 
 [tool.black]
 line-length = 160
+
+[tool.pyright]
+typeCheckingMode = "strict"
