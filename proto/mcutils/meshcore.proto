@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package mcutils;
+
+service MeshCore {
+  rpc get_contacts (GetContactsRequest) returns (GetContactsReply);
+}
+
+message Contact {
+  string public_key = 1;
+
+  int32 type = 2;
+  int32 flags = 3;
+
+  // -1 used as sentinel in JSON → keep int32
+  int32 out_path_len = 4;
+
+  string out_path = 5;
+  string adv_name = 6;
+
+  // Unix timestamps (seconds)
+  int64 last_advert = 7;
+  int64 lastmod = 8;
+
+  // Coordinates
+  double adv_lat = 9;
+  double adv_lon = 10;
+}
+
+message GetContactsRequest {
+
+}
+
+message GetContactsReply {
+  repeated Contact contacts = 1;
+}

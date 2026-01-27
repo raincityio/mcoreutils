@@ -13,11 +13,23 @@ dependencies = [
     "pyyaml>=5.0",
     "platformdirs>=4.3",
     "meshcore",
-    "folium"
+    "folium",
+    "grpcio>=1.60",
+    "protobuf>=4.25"
+]
+
+[project.optional-dependencies]
+dev = [
+    "grpcio-tools>=1.60",
+    "mypy>=1.8",
+    "mypy-protobuf>=3.6",
+    "types-protobuf"
 ]
 
 [project.scripts]
 mcutils = "mcutils.mcutils:main"
+server = "mcutils.server:main"
+client = "mcutils.client:main"
 
 [tool.black]
 line-length = 160

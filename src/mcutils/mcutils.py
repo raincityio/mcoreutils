@@ -33,7 +33,7 @@ class Config:
         return Config(**kwargs)
 
 
-async def get_meshcore(config: Config, task: Task):
+async def get_meshcore(config: Config, task: Task[Any]):
     meshcore = await MeshCore.create_serial(str(config.serial_device_path))
 
     async def disconnect_cb(_event: Event):
@@ -72,25 +72,32 @@ class JSONEncoder(json.JSONEncoder):
             return data
         elif isinstance(o, EventType):
             return o.name
+        elif isinstance(o, bytes):
+            return o.hex()
         super().default(o)
 
 
 async def subscribe(meshcore: MeshCore, *, xfilter: Optional[str] = None):
-    subscribe_task = asyncio.current_task(asyncio.get_event_loop())
-    assert subscribe_task is not None
+    callback_f = asyncio.Future[None]()
 
     def callback(_event: Event):
-        if xfilter:
-            _env = {"event": _event, "EventType": EventType}
-            _valid = eval(xfilter, None, _env)
-        else:
-            _valid = True
-        if _valid:
-            print(json.dumps(_event, cls=JSONEncoder, indent=2))
+        try:
+            if xfilter:
+                _env = {"event": _event, "EventType": EventType}
+                _valid = eval(xfilter, None, _env)
+            else:
+                _valid = True
+            if _valid:
+                print(json.dumps(_event, cls=JSONEncoder, indent=2))
+        except Exception as e:
+            if callback_f.done():
+                logging.exception(e)
+            else:
+                callback_f.set_exception(e)
 
     subscription = meshcore.dispatcher.subscribe(None, callback)
     try:
-        await asyncio.Event().wait()
+        await callback_f
     finally:
         subscription.unsubscribe()
 
@@ -109,6 +116,12 @@ async def samf(meshcore: MeshCore):
         await meshcore.stop_auto_message_fetching()
 
 
+async def remove_contact(meshcore: MeshCore, *, name: str):
+    await meshcore.ensure_contacts()
+    contact = meshcore.get_contact_by_name(name)
+    print(contact)
+
+
 async def amain():
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
@@ -120,7 +133,8 @@ async def amain():
     subparser = subparsers.add_parser("subscribe")
     subparser.add_argument("--xfilter")
     subparser = subparsers.add_parser("samf")
-
+    subparser = subparsers.add_parser("remove-contact")
+    subparser.add_argument("-n", metavar="name")
     args = parser.parse_args()
 
     config_data: dict[str, Any]
@@ -148,6 +162,9 @@ async def amain():
     elif args.command == "subscribe":
         meshcore = await get_meshcore(config, main_task)
         await subscribe(meshcore, xfilter=args.xfilter)
+    elif args.command == "remove-contact":
+        meshcore = await get_meshcore(config, main_task)
+        await remove_contact(meshcore, name=args.n)
     else:
         raise Exception(f"Unknown command: {args.command}")
 
