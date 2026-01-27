@@ -58,17 +58,15 @@ Global___CommandRequest: _TypeAlias = CommandRequest  # noqa: Y015
 class CommandReply(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 
-    EVENT_FIELD_NUMBER: _builtins.int
-    @_builtins.property
-    def event(self) -> Global___Event: ...
+    JSON_RESULT_FIELD_NUMBER: _builtins.int
+    json_result: _builtins.str
+    """ Event event = 1;"""
     def __init__(
         self,
         *,
-        event: Global___Event | None = ...,
+        json_result: _builtins.str = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["event", b"event"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["event", b"event"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["json_result", b"json_result"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
 Global___CommandReply: _TypeAlias = CommandReply  # noqa: Y015

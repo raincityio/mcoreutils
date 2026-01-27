@@ -6,18 +6,13 @@ from asyncio import Task
 from pathlib import Path
 from typing import Any
 
-import grpc
 import meshcore
 import platformdirs
 import yaml
-from meshcore import EventType, MeshCore
+from meshcore import SerialConnection
 from meshcore.events import Event
 
-from mcutils.common import jdump, jload
-from mcutils.meshcore_pb2 import CommandRequest, SubscribeRequest, CommandReply
-from . import meshcore_pb2_grpc, meshcore_pb2
-
-default_config_path = platformdirs.user_config_path("mcutils.server.yaml")
+default_config_path = platformdirs.user_config_path("mcutils.tcp_server.yaml")
 default_serial_device_path = Path("/dev/cu.usbmodem2301")
 
 
@@ -48,36 +43,6 @@ async def get_meshcore(config: Config, task: Task[Any]):
     return mc
 
 
-def event_to_event(event: Event):
-    return meshcore_pb2.Event(json=jdump(event))
-
-
-class MeshCoreService(meshcore_pb2_grpc.MeshCoreServicer):
-    def __init__(self, meshcore: MeshCore):
-        self.meshcore = meshcore
-
-    async def command(self, request: CommandRequest, context: grpc.aio.ServicerContext):
-        command = getattr(self.meshcore.commands, request.command)
-        args = jload(request.json_args)
-        kwargs = jload(request.json_kwargs)
-        result = await command(*args, **kwargs)
-        return CommandReply(json_result=jdump(result))
-
-    async def subscribe(self, request: SubscribeRequest, context: grpc.aio.ServicerContext):
-        event_q = asyncio.Queue[Event]()
-
-        def callback(_event: Event):
-            event_q.put_nowait(_event)
-
-        subscription = self.meshcore.dispatcher.subscribe(None, callback)
-        try:
-            while True:
-                event = await event_q.get()
-                yield event_to_event(event)
-        finally:
-            subscription.unsubscribe()
-
-
 async def serve():
     logging.basicConfig(level=logging.INFO)
 
@@ -101,14 +66,36 @@ async def serve():
     assert main_task is not None
     mc = await get_meshcore(config, main_task)
 
-    server = grpc.aio.server()
-    meshcore_pb2_grpc.add_MeshCoreServicer_to_server(MeshCoreService(mc), server)
+    # @classmethod
+    # async def create_serial(
+    #     cls,
+    #     port: str,
+    #     baudrate: int = 115200,
+    #     debug: bool = False,
+    #     only_error: bool = False,
+    #     default_timeout=None,
+    #     auto_reconnect: bool = False,
+    #     max_reconnect_attempts: int = 3,
+    #     cx_dly: float = 0.1,
+    # ) -> "MeshCore":
+    #     """Create and connect a MeshCore instance using serial connection"""
+    port = str(config.serial_device_path)
+    baudrate: int = 115200
+    cx_dly: float = 0.1
+    connection = SerialConnection(port, baudrate, cx_dly=cx_dly)
 
-    server.add_insecure_port("[::]:50051")
-    await server.start()
-    print("Async gRPC server listening on :50051")
+    frame_q = asyncio.Queue[bytes]()
 
-    await server.wait_for_termination()
+    class Reader:
+        async def handle_rx(self, frame: bytes):
+            frame_q.put_nowait(frame)
+
+    connection.set_reader(Reader())
+    await connection.connect()
+
+    while True:
+        frame = await frame_q.get()
+        print(frame)
 
 
 def main():

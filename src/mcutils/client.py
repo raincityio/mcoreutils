@@ -30,24 +30,24 @@ async def run():
         stub = meshcore_pb2_grpc.MeshCoreStub(channel)
 
         async def as_command(command: str, *args: Any, **kwargs: Any):
-            xargs = jdump(args)
-            xkwargs = jdump(kwargs)
-            response = await stub.command(meshcore_pb2.CommandRequest(command=command, json_args=xargs, json_kwargs=xkwargs))
-            print(jout(event_to_event(response.event)))
+            json_args = jdump(args)
+            json_kwargs = jdump(kwargs)
+            reply = await stub.command(meshcore_pb2.CommandRequest(command=command, json_args=json_args, json_kwargs=json_kwargs))
+            return jload(reply.json_result)
 
         if args.command is None:
             raise Exception("No command specified")
         elif args.command == "subscribe":
             async for event in stub.subscribe(meshcore_pb2.SubscribeRequest()):
-                print(jdump(event_to_event(event)))
+                jout(event_to_event(event))
         elif args.command == "get-contacts":
-            await as_command("get_contacts")
+            jout(await as_command("get_contacts"))
         elif args.command == "get-msg":
-            await as_command("get_msg")
+            jout(await as_command("get_msg"))
         elif args.command == "get-channel":
-            await as_command("get_channel", args.channel_idx)
+            jout(await as_command("get_channel", args.channel_idx))
         elif args.command == "remove-contact":
-            await as_command("remove_contact", args.public_key)
+            jout(await as_command("remove_contact", args.public_key))
         else:
             raise Exception(f"Unknown command: {args.command}")
 

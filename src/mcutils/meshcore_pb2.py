@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16mcutils/meshcore.proto\x12\x07mcutils\"\x15\n\x05\x45vent\x12\x0c\n\x04json\x18\x01 \x01(\t\"I\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\x12\x11\n\tjson_args\x18\x02 \x01(\t\x12\x13\n\x0bjson_kwargs\x18\x03 \x01(\t\"-\n\x0c\x43ommandReply\x12\x1d\n\x05\x65vent\x18\x01 \x01(\x0b\x32\x0e.mcutils.Event\"\x12\n\x10SubscribeRequest2\x7f\n\x08MeshCore\x12\x38\n\tsubscribe\x12\x19.mcutils.SubscribeRequest\x1a\x0e.mcutils.Event0\x01\x12\x39\n\x07\x63ommand\x12\x17.mcutils.CommandRequest\x1a\x15.mcutils.CommandReplyb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16mcutils/meshcore.proto\x12\x07mcutils\"\x15\n\x05\x45vent\x12\x0c\n\x04json\x18\x01 \x01(\t\"I\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\x12\x11\n\tjson_args\x18\x02 \x01(\t\x12\x13\n\x0bjson_kwargs\x18\x03 \x01(\t\"#\n\x0c\x43ommandReply\x12\x13\n\x0bjson_result\x18\x01 \x01(\t\"\x12\n\x10SubscribeRequest2\x7f\n\x08MeshCore\x12\x38\n\tsubscribe\x12\x19.mcutils.SubscribeRequest\x1a\x0e.mcutils.Event0\x01\x12\x39\n\x07\x63ommand\x12\x17.mcutils.CommandRequest\x1a\x15.mcutils.CommandReplyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,9 +36,9 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_COMMANDREQUEST']._serialized_start=58
   _globals['_COMMANDREQUEST']._serialized_end=131
   _globals['_COMMANDREPLY']._serialized_start=133
-  _globals['_COMMANDREPLY']._serialized_end=178
-  _globals['_SUBSCRIBEREQUEST']._serialized_start=180
-  _globals['_SUBSCRIBEREQUEST']._serialized_end=198
-  _globals['_MESHCORE']._serialized_start=200
-  _globals['_MESHCORE']._serialized_end=327
+  _globals['_COMMANDREPLY']._serialized_end=168
+  _globals['_SUBSCRIBEREQUEST']._serialized_start=170
+  _globals['_SUBSCRIBEREQUEST']._serialized_end=188
+  _globals['_MESHCORE']._serialized_start=190
+  _globals['_MESHCORE']._serialized_end=317
 # @@protoc_insertion_point(module_scope)

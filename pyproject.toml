@@ -30,6 +30,7 @@ dev = [
 mcutils = "mcutils.mcutils:main"
 server = "mcutils.server:main"
 client = "mcutils.client:main"
+tcp-server = "mcutils.tcp_server:main"
 
 [tool.black]
 line-length = 160

@@ -58,7 +58,7 @@ def jdump(o: Any):
 
 
 def jout(o: Any):
-    return json.dumps(o, cls=PrettyJSONEncoder, indent=2)
+    print(json.dumps(o, cls=PrettyJSONEncoder, indent=2))
 
 
 def jload(o: Any):
