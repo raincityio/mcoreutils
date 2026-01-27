@@ -24,19 +24,21 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16mcutils/meshcore.proto\x12\x07mcutils\"\xbc\x01\n\x07\x43ontact\x12\x12\n\npublic_key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\x05\x12\r\n\x05\x66lags\x18\x03 \x01(\x05\x12\x14\n\x0cout_path_len\x18\x04 \x01(\x05\x12\x10\n\x08out_path\x18\x05 \x01(\t\x12\x10\n\x08\x61\x64v_name\x18\x06 \x01(\t\x12\x13\n\x0blast_advert\x18\x07 \x01(\x03\x12\x0f\n\x07lastmod\x18\x08 \x01(\x03\x12\x0f\n\x07\x61\x64v_lat\x18\t \x01(\x01\x12\x0f\n\x07\x61\x64v_lon\x18\n \x01(\x01\"\x14\n\x12GetContactsRequest\"6\n\x10GetContactsReply\x12\"\n\x08\x63ontacts\x18\x01 \x03(\x0b\x32\x10.mcutils.Contact2R\n\x08MeshCore\x12\x46\n\x0cget_contacts\x12\x1b.mcutils.GetContactsRequest\x1a\x19.mcutils.GetContactsReplyb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16mcutils/meshcore.proto\x12\x07mcutils\"\x15\n\x05\x45vent\x12\x0c\n\x04json\x18\x01 \x01(\t\"I\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\x12\x11\n\tjson_args\x18\x02 \x01(\t\x12\x13\n\x0bjson_kwargs\x18\x03 \x01(\t\"-\n\x0c\x43ommandReply\x12\x1d\n\x05\x65vent\x18\x01 \x01(\x0b\x32\x0e.mcutils.Event\"\x12\n\x10SubscribeRequest2\x7f\n\x08MeshCore\x12\x38\n\tsubscribe\x12\x19.mcutils.SubscribeRequest\x1a\x0e.mcutils.Event0\x01\x12\x39\n\x07\x63ommand\x12\x17.mcutils.CommandRequest\x1a\x15.mcutils.CommandReplyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'mcutils.meshcore_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_CONTACT']._serialized_start=36
-  _globals['_CONTACT']._serialized_end=224
-  _globals['_GETCONTACTSREQUEST']._serialized_start=226
-  _globals['_GETCONTACTSREQUEST']._serialized_end=246
-  _globals['_GETCONTACTSREPLY']._serialized_start=248
-  _globals['_GETCONTACTSREPLY']._serialized_end=302
-  _globals['_MESHCORE']._serialized_start=304
-  _globals['_MESHCORE']._serialized_end=386
+  _globals['_EVENT']._serialized_start=35
+  _globals['_EVENT']._serialized_end=56
+  _globals['_COMMANDREQUEST']._serialized_start=58
+  _globals['_COMMANDREQUEST']._serialized_end=131
+  _globals['_COMMANDREPLY']._serialized_start=133
+  _globals['_COMMANDREPLY']._serialized_end=178
+  _globals['_SUBSCRIBEREQUEST']._serialized_start=180
+  _globals['_SUBSCRIBEREQUEST']._serialized_end=198
+  _globals['_MESHCORE']._serialized_start=200
+  _globals['_MESHCORE']._serialized_end=327
 # @@protoc_insertion_point(module_scope)

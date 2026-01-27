@@ -3,34 +3,21 @@ syntax = "proto3";
 package mcutils;
 
 service MeshCore {
-  rpc get_contacts (GetContactsRequest) returns (GetContactsReply);
+  rpc subscribe (SubscribeRequest) returns (stream Event);
+  rpc command (CommandRequest) returns (CommandReply);
 }
 
-message Contact {
-  string public_key = 1;
-
-  int32 type = 2;
-  int32 flags = 3;
-
-  // -1 used as sentinel in JSON → keep int32
-  int32 out_path_len = 4;
-
-  string out_path = 5;
-  string adv_name = 6;
-
-  // Unix timestamps (seconds)
-  int64 last_advert = 7;
-  int64 lastmod = 8;
-
-  // Coordinates
-  double adv_lat = 9;
-  double adv_lon = 10;
+message Event {
+  string json = 1;
 }
 
-message GetContactsRequest {
-
+message CommandRequest {
+  string command = 1;
+  string json_args = 2;
+  string json_kwargs = 3;
+}
+message CommandReply {
+  Event event = 1;
 }
 
-message GetContactsReply {
-  repeated Contact contacts = 1;
-}
+message SubscribeRequest {}

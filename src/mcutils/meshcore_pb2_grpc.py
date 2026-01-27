@@ -34,17 +34,28 @@ class MeshCoreStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.get_contacts = channel.unary_unary(
-                '/mcutils.MeshCore/get_contacts',
-                request_serializer=mcutils_dot_meshcore__pb2.GetContactsRequest.SerializeToString,
-                response_deserializer=mcutils_dot_meshcore__pb2.GetContactsReply.FromString,
+        self.subscribe = channel.unary_stream(
+                '/mcutils.MeshCore/subscribe',
+                request_serializer=mcutils_dot_meshcore__pb2.SubscribeRequest.SerializeToString,
+                response_deserializer=mcutils_dot_meshcore__pb2.Event.FromString,
+                _registered_method=True)
+        self.command = channel.unary_unary(
+                '/mcutils.MeshCore/command',
+                request_serializer=mcutils_dot_meshcore__pb2.CommandRequest.SerializeToString,
+                response_deserializer=mcutils_dot_meshcore__pb2.CommandReply.FromString,
                 _registered_method=True)
 
 
 class MeshCoreServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def get_contacts(self, request, context):
+    def subscribe(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def command(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -53,10 +64,15 @@ class MeshCoreServicer(object):
 
 def add_MeshCoreServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'get_contacts': grpc.unary_unary_rpc_method_handler(
-                    servicer.get_contacts,
-                    request_deserializer=mcutils_dot_meshcore__pb2.GetContactsRequest.FromString,
-                    response_serializer=mcutils_dot_meshcore__pb2.GetContactsReply.SerializeToString,
+            'subscribe': grpc.unary_stream_rpc_method_handler(
+                    servicer.subscribe,
+                    request_deserializer=mcutils_dot_meshcore__pb2.SubscribeRequest.FromString,
+                    response_serializer=mcutils_dot_meshcore__pb2.Event.SerializeToString,
+            ),
+            'command': grpc.unary_unary_rpc_method_handler(
+                    servicer.command,
+                    request_deserializer=mcutils_dot_meshcore__pb2.CommandRequest.FromString,
+                    response_serializer=mcutils_dot_meshcore__pb2.CommandReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -70,7 +86,34 @@ class MeshCore(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def get_contacts(request,
+    def subscribe(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/mcutils.MeshCore/subscribe',
+            mcutils_dot_meshcore__pb2.SubscribeRequest.SerializeToString,
+            mcutils_dot_meshcore__pb2.Event.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def command(request,
             target,
             options=(),
             channel_credentials=None,
@@ -83,9 +126,9 @@ class MeshCore(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/mcutils.MeshCore/get_contacts',
-            mcutils_dot_meshcore__pb2.GetContactsRequest.SerializeToString,
-            mcutils_dot_meshcore__pb2.GetContactsReply.FromString,
+            '/mcutils.MeshCore/command',
+            mcutils_dot_meshcore__pb2.CommandRequest.SerializeToString,
+            mcutils_dot_meshcore__pb2.CommandReply.FromString,
             options,
             channel_credentials,
             insecure,

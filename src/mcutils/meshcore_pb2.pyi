@@ -3,10 +3,8 @@
 isort:skip_file
 """
 
-from collections import abc as _abc
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from google.protobuf.internal import containers as _containers
 import builtins as _builtins
 import sys
 import typing as _typing
@@ -19,74 +17,68 @@ else:
 DESCRIPTOR: _descriptor.FileDescriptor
 
 @_typing.final
-class Contact(_message.Message):
+class Event(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 
-    PUBLIC_KEY_FIELD_NUMBER: _builtins.int
-    TYPE_FIELD_NUMBER: _builtins.int
-    FLAGS_FIELD_NUMBER: _builtins.int
-    OUT_PATH_LEN_FIELD_NUMBER: _builtins.int
-    OUT_PATH_FIELD_NUMBER: _builtins.int
-    ADV_NAME_FIELD_NUMBER: _builtins.int
-    LAST_ADVERT_FIELD_NUMBER: _builtins.int
-    LASTMOD_FIELD_NUMBER: _builtins.int
-    ADV_LAT_FIELD_NUMBER: _builtins.int
-    ADV_LON_FIELD_NUMBER: _builtins.int
-    public_key: _builtins.str
-    type: _builtins.int
-    flags: _builtins.int
-    out_path_len: _builtins.int
-    """-1 used as sentinel in JSON → keep int32"""
-    out_path: _builtins.str
-    adv_name: _builtins.str
-    last_advert: _builtins.int
-    """Unix timestamps (seconds)"""
-    lastmod: _builtins.int
-    adv_lat: _builtins.float
-    """Coordinates"""
-    adv_lon: _builtins.float
+    JSON_FIELD_NUMBER: _builtins.int
+    json: _builtins.str
     def __init__(
         self,
         *,
-        public_key: _builtins.str = ...,
-        type: _builtins.int = ...,
-        flags: _builtins.int = ...,
-        out_path_len: _builtins.int = ...,
-        out_path: _builtins.str = ...,
-        adv_name: _builtins.str = ...,
-        last_advert: _builtins.int = ...,
-        lastmod: _builtins.int = ...,
-        adv_lat: _builtins.float = ...,
-        adv_lon: _builtins.float = ...,
+        json: _builtins.str = ...,
     ) -> None: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["adv_lat", b"adv_lat", "adv_lon", b"adv_lon", "adv_name", b"adv_name", "flags", b"flags", "last_advert", b"last_advert", "lastmod", b"lastmod", "out_path", b"out_path", "out_path_len", b"out_path_len", "public_key", b"public_key", "type", b"type"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["json", b"json"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___Contact: _TypeAlias = Contact  # noqa: Y015
+Global___Event: _TypeAlias = Event  # noqa: Y015
 
 @_typing.final
-class GetContactsRequest(_message.Message):
+class CommandRequest(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 
+    COMMAND_FIELD_NUMBER: _builtins.int
+    JSON_ARGS_FIELD_NUMBER: _builtins.int
+    JSON_KWARGS_FIELD_NUMBER: _builtins.int
+    command: _builtins.str
+    json_args: _builtins.str
+    json_kwargs: _builtins.str
     def __init__(
         self,
+        *,
+        command: _builtins.str = ...,
+        json_args: _builtins.str = ...,
+        json_kwargs: _builtins.str = ...,
     ) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["command", b"command", "json_args", b"json_args", "json_kwargs", b"json_kwargs"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___GetContactsRequest: _TypeAlias = GetContactsRequest  # noqa: Y015
+Global___CommandRequest: _TypeAlias = CommandRequest  # noqa: Y015
 
 @_typing.final
-class GetContactsReply(_message.Message):
+class CommandReply(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 
-    CONTACTS_FIELD_NUMBER: _builtins.int
+    EVENT_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def contacts(self) -> _containers.RepeatedCompositeFieldContainer[Global___Contact]: ...
+    def event(self) -> Global___Event: ...
     def __init__(
         self,
         *,
-        contacts: _abc.Iterable[Global___Contact] | None = ...,
+        event: Global___Event | None = ...,
     ) -> None: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["contacts", b"contacts"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["event", b"event"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["event", b"event"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___GetContactsReply: _TypeAlias = GetContactsReply  # noqa: Y015
+Global___CommandReply: _TypeAlias = CommandReply  # noqa: Y015
+
+@_typing.final
+class SubscribeRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    def __init__(
+        self,
+    ) -> None: ...
+
+Global___SubscribeRequest: _TypeAlias = SubscribeRequest  # noqa: Y015

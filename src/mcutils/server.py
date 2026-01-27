@@ -13,8 +13,9 @@ import yaml
 from meshcore import EventType, MeshCore
 from meshcore.events import Event
 
-from mcutils.meshcore_pb2 import Contact, GetContactsReply, GetContactsRequest
-from . import meshcore_pb2_grpc
+from mcutils.common import jdump, jload
+from mcutils.meshcore_pb2 import CommandRequest, SubscribeRequest, CommandReply
+from . import meshcore_pb2_grpc, meshcore_pb2
 
 default_config_path = platformdirs.user_config_path("mcutils.server.yaml")
 default_serial_device_path = Path("/dev/cu.usbmodem2301")
@@ -47,18 +48,34 @@ async def get_meshcore(config: Config, task: Task[Any]):
     return mc
 
 
+def event_to_event(event: Event):
+    return meshcore_pb2.Event(json=jdump(event))
+
+
 class MeshCoreService(meshcore_pb2_grpc.MeshCoreServicer):
     def __init__(self, meshcore: MeshCore):
         self.meshcore = meshcore
 
-    async def get_contacts(self, request: GetContactsRequest, context: grpc.aio.ServicerContext):
-        c = Contact(public_key="drew")
-        return GetContactsReply(contacts=[c, c])
+    async def command(self, request: CommandRequest, context: grpc.aio.ServicerContext):
+        command = getattr(self.meshcore.commands, request.command)
+        args = jload(request.json_args)
+        kwargs = jload(request.json_kwargs)
+        event = await command(*args, **kwargs)
+        return CommandReply(event=event_to_event(event))
 
+    async def subscribe(self, request: SubscribeRequest, context: grpc.aio.ServicerContext):
+        event_q = asyncio.Queue[Event]()
 
-# class GreeterService(greeter_pb2_grpc.GreeterServicer):
-#     async def SayHello(self, request, context):
-#         return greeter_pb2.HelloReply(message=f"Hello, {request.name} (async)!")
+        def callback(_event: Event):
+            event_q.put_nowait(_event)
+
+        subscription = self.meshcore.dispatcher.subscribe(None, callback)
+        try:
+            while True:
+                event = await event_q.get()
+                yield event_to_event(event)
+        finally:
+            subscription.unsubscribe()
 
 
 async def serve():
