@@ -14,26 +14,17 @@ dependencies = [
     "platformdirs>=4.3",
     "meshcore",
     "folium",
-    "grpcio>=1.60",
-    "protobuf>=4.25"
-]
-
-[project.optional-dependencies]
-dev = [
-    "grpcio-tools>=1.60",
-    "mypy>=1.8",
-    "mypy-protobuf>=3.6",
-    "types-protobuf"
+    "grpcio>=1.60"
 ]
 
 [project.scripts]
 mcutils = "mcutils.mcutils:main"
-server = "mcutils.server:main"
-client = "mcutils.client:main"
 tcp-server = "mcutils.tcp_server:main"
+tcp-client = "mcutils.tcp_client:main"
 
 [tool.black]
 line-length = 160
 
 [tool.pyright]
 typeCheckingMode = "strict"
+reportMissingTypeStubs = "none"

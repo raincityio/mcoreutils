@@ -2,7 +2,6 @@
 import argparse
 import asyncio
 import dataclasses
-import json
 import logging
 from asyncio import Task
 from pathlib import Path
@@ -13,6 +12,8 @@ import platformdirs
 import yaml
 from meshcore import MeshCore, EventType
 from meshcore.events import Event
+
+from mcutils.common import jout
 
 default_config_path = platformdirs.user_config_path("mcutils.yaml")
 default_serial_device_path = Path("/dev/cu.usbmodem2301")
@@ -34,13 +35,14 @@ class Config:
 
 
 async def get_meshcore(config: Config, task: Task[Any]):
-    meshcore = await MeshCore.create_serial(str(config.serial_device_path))
+    # meshcore = await MeshCore.create_serial(str(config.serial_device_path))
+    meshcore = await MeshCore.create_tcp("localhost", 1234, auto_reconnect=True, max_reconnect_attempts=999)
 
-    async def disconnect_cb(_event: Event):
-        logging.info(f"Serial Disconnected: {_event}")
-        task.cancel()
-
-    meshcore.subscribe(EventType.DISCONNECTED, disconnect_cb)
+    # async def disconnect_cb(_event: Event):
+    #     logging.info(f"Serial Disconnected: {_event}")
+    #     task.cancel()
+    #
+    # meshcore.subscribe(EventType.DISCONNECTED, disconnect_cb)
 
     return meshcore
 
@@ -61,22 +63,6 @@ async def create_map(meshcore: MeshCore, *, output_path: Path):
     m.save(output_path)
 
 
-class JSONEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, Event):
-            data = {
-                "type": o.type,
-                "payload": o.payload,
-                "attributes": o.attributes,
-            }
-            return data
-        elif isinstance(o, EventType):
-            return o.name
-        elif isinstance(o, bytes):
-            return o.hex()
-        super().default(o)
-
-
 async def subscribe(meshcore: MeshCore, *, xfilter: Optional[str] = None):
     callback_f = asyncio.Future[None]()
 
@@ -87,8 +73,11 @@ async def subscribe(meshcore: MeshCore, *, xfilter: Optional[str] = None):
                 _valid = eval(xfilter, None, _env)
             else:
                 _valid = True
+            # print(_event)
+            # print(type(_event))
             if _valid:
-                print(json.dumps(_event, cls=JSONEncoder, indent=2))
+                print(_event)
+                jout(_event)
         except Exception as e:
             if callback_f.done():
                 logging.exception(e)
@@ -106,7 +95,7 @@ async def samf(meshcore: MeshCore):
     try:
 
         async def callback(_event: Event):
-            print(json.dumps(_event, cls=JSONEncoder, indent=2))
+            jout(_event)
 
         meshcore.subscribe(EventType.CHANNEL_MSG_RECV, callback)
         meshcore.subscribe(EventType.CONTACT_MSG_RECV, callback)
@@ -135,6 +124,7 @@ async def amain():
     subparser = subparsers.add_parser("samf")
     subparser = subparsers.add_parser("remove-contact")
     subparser.add_argument("-n", metavar="name")
+    subparser = subparsers.add_parser("self-info")
     args = parser.parse_args()
 
     config_data: dict[str, Any]
@@ -165,6 +155,9 @@ async def amain():
     elif args.command == "remove-contact":
         meshcore = await get_meshcore(config, main_task)
         await remove_contact(meshcore, name=args.n)
+    elif args.command == "self-info":
+        meshcore = await get_meshcore(config, main_task)
+        jout(meshcore.self_info)
     else:
         raise Exception(f"Unknown command: {args.command}")
 

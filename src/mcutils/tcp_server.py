@@ -2,24 +2,29 @@ import argparse
 import asyncio
 import dataclasses
 import logging
-from asyncio import Task
+from asyncio import StreamReader, StreamWriter, TaskGroup
 from pathlib import Path
 from typing import Any
 
-import meshcore
 import platformdirs
 import yaml
 from meshcore import SerialConnection
-from meshcore.events import Event
 
 default_config_path = platformdirs.user_config_path("mcutils.tcp_server.yaml")
-default_serial_device_path = Path("/dev/cu.usbmodem2301")
+default_host = "localhost"
+default_port = 1234
+SIGNATURE = b"\x01\x03      mccli"
 
 
 @dataclasses.dataclass(frozen=True)
 class Config:
-    serial_device_path: Path = default_serial_device_path
+    serial_device_path: Path
+    host: str = default_host
+    port: int = default_port
+    baudrate: int = 115200
+    cx_dly: float = 0.1
     loglevel: int = logging.INFO
+    check_signature: bool = True
 
     @staticmethod
     def from_data(data: dict[str, Any]):
@@ -27,23 +32,78 @@ class Config:
         if "serial_device_path" in data:
             kwargs["serial_device_path"] = Path(data["serial_device_path"])
         if "loglevel" in data:
-            kwargs["loglevel"] = logging.getLevelName(data["loglevel"])
+            kwargs["loglevel"] = logging.getLevelName(data["loglevel"])  # pyright: ignore [reportDeprecated]
+        if "listen" in data:
+            kwargs["listen"] = tuple(data["listen"])
         return Config(**kwargs)
 
 
-async def get_meshcore(config: Config, task: Task[Any]):
-    mc = await meshcore.MeshCore.create_serial(str(config.serial_device_path))
+async def read_frame(reader: StreamReader):
+    byte0 = await reader.read(1)
+    if not byte0:
+        return None
+    data_sz_bytes = await reader.read(2)
+    if not data_sz_bytes:
+        return None
+    data_sz = int.from_bytes(data_sz_bytes, byteorder="little")
+    data = await reader.read(data_sz)
+    if not data:
+        return None
+    return data
 
-    async def disconnect_cb(_event: Event):
-        logging.info(f"Serial Disconnected: {_event}")
-        task.cancel()
 
-    mc.subscribe(EventType.DISCONNECTED, disconnect_cb)
+class Fanout:
+    def __init__(self):
+        self.writers = dict[str, asyncio.StreamWriter]()
 
-    return mc
+    def write(self, data: bytes):
+        for writer in self.writers.values():
+            writer.write(data)
+
+    def add(self, addr: str, writer: asyncio.StreamWriter):
+        self.writers[addr] = writer
+
+    def remove(self, addr: str):
+        self.writers.pop(addr)
 
 
-async def serve():
+async def run_server(config: Config, connection: SerialConnection, fanout: Fanout):
+    async def handler(reader: StreamReader, writer: StreamWriter):
+        addr = writer.get_extra_info("peername")
+        fanout.add(addr, writer)
+        try:
+            if config.check_signature:
+                sig_test = await read_frame(reader)
+                if sig_test != SIGNATURE:
+                    raise Exception(f"Invalid signature: {sig_test}")
+                await connection.send(sig_test)  # pyright: ignore [reportUnknownMemberType]
+            while True:
+                data = await read_frame(reader)
+                if not data:
+                    break
+                await connection.send(data)  # pyright: ignore [reportUnknownMemberType]
+        except Exception as e:
+            logging.error(e)
+        finally:
+            fanout.remove(addr)
+            writer.close()
+
+    server = await asyncio.start_server(handler, host=config.host, port=config.port)
+    await server.serve_forever()
+
+
+async def process_frames(frame_q: asyncio.Queue[bytes], fanout: Fanout):
+    while True:
+        frame = await frame_q.get()
+        logging.debug(f"frame: {frame}")
+        # TODO I don't know what the first byte is, does it matter?
+        fanout.write(b"?")
+        data_sz = len(frame).to_bytes(2, byteorder="little")
+        fanout.write(data_sz)
+        fanout.write(frame)
+
+
+async def amain():
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser()
@@ -64,39 +124,34 @@ async def serve():
 
     main_task = asyncio.current_task()
     assert main_task is not None
-    mc = await get_meshcore(config, main_task)
-
-    # @classmethod
-    # async def create_serial(
-    #     cls,
-    #     port: str,
-    #     baudrate: int = 115200,
-    #     debug: bool = False,
-    #     only_error: bool = False,
-    #     default_timeout=None,
-    #     auto_reconnect: bool = False,
-    #     max_reconnect_attempts: int = 3,
-    #     cx_dly: float = 0.1,
-    # ) -> "MeshCore":
-    #     """Create and connect a MeshCore instance using serial connection"""
-    port = str(config.serial_device_path)
-    baudrate: int = 115200
-    cx_dly: float = 0.1
-    connection = SerialConnection(port, baudrate, cx_dly=cx_dly)
 
     frame_q = asyncio.Queue[bytes]()
+    fanout = Fanout()
 
-    class Reader:
-        async def handle_rx(self, frame: bytes):
-            frame_q.put_nowait(frame)
+    port = str(config.serial_device_path)
+    connection = SerialConnection(port, baudrate=config.baudrate, cx_dly=config.cx_dly)
+    try:
 
-    connection.set_reader(Reader())
-    await connection.connect()
+        async def disconnect_handler(reason: str):
+            logging.info(f"Serial Disconnected: {reason}")
+            main_task.cancel()
 
-    while True:
-        frame = await frame_q.get()
-        print(frame)
+        connection.set_disconnect_callback(disconnect_handler)  # pyright: ignore [reportUnknownMemberType]
+
+        class Reader:
+            @staticmethod
+            async def handle_rx(_frame: bytes):
+                frame_q.put_nowait(_frame)
+
+        connection.set_reader(Reader())  # pyright: ignore [reportUnknownMemberType]
+        await connection.connect()
+
+        async with TaskGroup() as g:
+            g.create_task(run_server(config, connection, fanout))
+            g.create_task(process_frames(frame_q, fanout))
+    finally:
+        await connection.disconnect()
 
 
 def main():
-    asyncio.run(serve())
+    asyncio.run(amain())
