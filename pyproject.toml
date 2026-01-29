@@ -18,9 +18,8 @@ dependencies = [
 ]
 
 [project.scripts]
-mcutils = "mcutils.mcutils:main"
-tcp-server = "mcutils.tcp_server:main"
-tcp-client = "mcutils.tcp_client:main"
+mcutils = "mcutils.main:main"
+mc-serial-tcp-server = "mcutils.serial_tcp_server:main"
 
 [tool.black]
 line-length = 160

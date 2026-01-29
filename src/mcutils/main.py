@@ -3,7 +3,6 @@ import argparse
 import asyncio
 import dataclasses
 import logging
-from asyncio import Task
 from pathlib import Path
 from typing import Any, Optional
 
@@ -16,35 +15,25 @@ from meshcore.events import Event
 from mcutils.common import jout
 
 default_config_path = platformdirs.user_config_path("mcutils.yaml")
-default_serial_device_path = Path("/dev/cu.usbmodem2301")
+default_mc_endpoint = (
+    "localhost",
+    1234,
+)
 
 
 @dataclasses.dataclass(frozen=True)
 class Config:
-    serial_device_path: Path = default_serial_device_path
+    mc_endpoint: tuple[str, int] = default_mc_endpoint
     loglevel: int = logging.INFO
 
     @staticmethod
     def from_data(data: dict[str, Any]):
         kwargs = data.copy()
-        if "serial_device_path" in data:
-            kwargs["serial_device_path"] = Path(data["serial_device_path"])
         if "loglevel" in data:
-            kwargs["loglevel"] = logging.getLevelName(data["loglevel"])
+            kwargs["loglevel"] = logging.getLevelName(data["loglevel"])  # pyright: ignore [reportDeprecated]
+        if "mc_endpoint" in data:
+            kwargs["mc_endpoint"] = tuple(data["mc_endpoint"])
         return Config(**kwargs)
-
-
-async def get_meshcore(config: Config, task: Task[Any]):
-    # meshcore = await MeshCore.create_serial(str(config.serial_device_path))
-    meshcore = await MeshCore.create_tcp("localhost", 1234, auto_reconnect=True, max_reconnect_attempts=999)
-
-    # async def disconnect_cb(_event: Event):
-    #     logging.info(f"Serial Disconnected: {_event}")
-    #     task.cancel()
-    #
-    # meshcore.subscribe(EventType.DISCONNECTED, disconnect_cb)
-
-    return meshcore
 
 
 async def create_map(meshcore: MeshCore, *, output_path: Path):
@@ -60,55 +49,52 @@ async def create_map(meshcore: MeshCore, *, output_path: Path):
             popup=adv_name,
             radius=4,
         ).add_to(m)
-    m.save(output_path)
+    m.save(output_path)  # pyright: ignore [reportUnknownMemberType]
+
+
+# this is silly, but connected has a future in it, so...
+async def resolve_event(event: Event):
+    if event.type == EventType.CONNECTED:
+        connection_info = event.payload["connection_info"]
+        if type(connection_info) is asyncio.Future:
+            event.payload["connection_info"] = await connection_info
+    return event
 
 
 async def subscribe(meshcore: MeshCore, *, xfilter: Optional[str] = None):
-    callback_f = asyncio.Future[None]()
+    event_q = asyncio.Queue[Event]()
 
     def callback(_event: Event):
-        try:
-            if xfilter:
-                _env = {"event": _event, "EventType": EventType}
-                _valid = eval(xfilter, None, _env)
-            else:
-                _valid = True
-            # print(_event)
-            # print(type(_event))
-            if _valid:
-                print(_event)
-                jout(_event)
-        except Exception as e:
-            if callback_f.done():
-                logging.exception(e)
-            else:
-                callback_f.set_exception(e)
+        event_q.put_nowait(_event)
 
-    subscription = meshcore.dispatcher.subscribe(None, callback)
+    subscription = meshcore.dispatcher.subscribe(None, callback)  # pyright: ignore [reportUnknownMemberType]
     try:
-        await callback_f
+        while True:
+            event = await event_q.get()
+            event = await resolve_event(event)
+            if xfilter:
+                env = {"event": event, "EventType": EventType}
+                valid = eval(xfilter, None, env)
+            else:
+                valid = True
+            if valid:
+                jout(event)
     finally:
         subscription.unsubscribe()
 
 
-async def samf(meshcore: MeshCore):
-    try:
-
-        async def callback(_event: Event):
-            jout(_event)
-
-        meshcore.subscribe(EventType.CHANNEL_MSG_RECV, callback)
-        meshcore.subscribe(EventType.CONTACT_MSG_RECV, callback)
-        await meshcore.start_auto_message_fetching()
-        await asyncio.Event().wait()
-    finally:
-        await meshcore.stop_auto_message_fetching()
-
-
-async def remove_contact(meshcore: MeshCore, *, name: str):
-    await meshcore.ensure_contacts()
-    contact = meshcore.get_contact_by_name(name)
-    print(contact)
+async def remove_contact(meshcore: MeshCore, *, public_key: Optional[str] = None, name: Optional[str] = None):
+    if name is not None:
+        await meshcore.ensure_contacts()
+        contact = meshcore.get_contact_by_name(name)
+        if contact is None:
+            raise Exception(f"Unknown contact: {name}")
+        public_key = contact["public_key"]
+        assert public_key is not None
+        return await meshcore.commands.remove_contact(public_key)
+    if public_key is not None:
+        return await meshcore.commands.remove_contact(public_key)
+    raise Exception("Missing contact key")
 
 
 async def amain():
@@ -121,10 +107,12 @@ async def amain():
     subparser.add_argument("-o", metavar="output_path", type=Path, help="Output file path", required=True)
     subparser = subparsers.add_parser("subscribe")
     subparser.add_argument("--xfilter")
-    subparser = subparsers.add_parser("samf")
     subparser = subparsers.add_parser("remove-contact")
     subparser.add_argument("-n", metavar="name")
-    subparser = subparsers.add_parser("self-info")
+    subparser.add_argument("--public-key")
+    subparsers.add_parser("self-info")
+    subparsers.add_parser("reboot")
+    subparsers.add_parser("get-contacts")
     args = parser.parse_args()
 
     config_data: dict[str, Any]
@@ -141,23 +129,31 @@ async def amain():
     main_task = asyncio.current_task(asyncio.get_event_loop())
     assert main_task is not None
 
+    async def get_meshcore():
+        return await MeshCore.create_tcp(  # pyright: ignore [reportUnknownMemberType]
+            config.mc_endpoint[0], config.mc_endpoint[1], auto_reconnect=True, max_reconnect_attempts=999
+        )
+
     if args.command is None:
         parser.print_help()
-    elif args.command == "samf":
-        meshcore = await get_meshcore(config, main_task)
-        await samf(meshcore)
     elif args.command == "create-map":
-        meshcore = await get_meshcore(config, main_task)
+        meshcore = await get_meshcore()
         await create_map(meshcore, output_path=args.o)
     elif args.command == "subscribe":
-        meshcore = await get_meshcore(config, main_task)
+        meshcore = await get_meshcore()
         await subscribe(meshcore, xfilter=args.xfilter)
     elif args.command == "remove-contact":
-        meshcore = await get_meshcore(config, main_task)
-        await remove_contact(meshcore, name=args.n)
+        meshcore = await get_meshcore()
+        jout(await remove_contact(meshcore, public_key=args.public_key, name=args.n))
     elif args.command == "self-info":
-        meshcore = await get_meshcore(config, main_task)
+        meshcore = await get_meshcore()
         jout(meshcore.self_info)
+    elif args.command == "reboot":
+        meshcore = await get_meshcore()
+        jout(await meshcore.commands.reboot())
+    elif args.command == "get-contacts":
+        meshcore = await get_meshcore()
+        jout(await meshcore.commands.get_contacts())
     else:
         raise Exception(f"Unknown command: {args.command}")
 

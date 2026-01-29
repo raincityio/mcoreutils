@@ -22,7 +22,6 @@ class Config:
     host: str = default_host
     port: int = default_port
     baudrate: int = 115200
-    cx_dly: float = 0.1
     loglevel: int = logging.INFO
     check_signature: bool = True
 
@@ -129,7 +128,7 @@ async def amain():
     fanout = Fanout()
 
     port = str(config.serial_device_path)
-    connection = SerialConnection(port, baudrate=config.baudrate, cx_dly=config.cx_dly)
+    connection = SerialConnection(port, baudrate=config.baudrate)
     try:
 
         async def disconnect_handler(reason: str):
