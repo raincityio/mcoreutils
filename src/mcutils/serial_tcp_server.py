@@ -2,7 +2,8 @@ import argparse
 import asyncio
 import dataclasses
 import logging
-from asyncio import StreamReader, StreamWriter, TaskGroup
+import signal
+from asyncio import AbstractEventLoop, StreamReader, StreamWriter, TaskGroup, CancelledError
 from pathlib import Path
 from typing import Any
 
@@ -56,8 +57,12 @@ class Fanout:
         self.writers = dict[str, asyncio.StreamWriter]()
 
     def write(self, data: bytes):
-        for writer in self.writers.values():
-            writer.write(data)
+        for addr, writer in self.writers.items():
+            try:
+                writer.write(data)
+            except Exception as e:
+                # NOTE let the client handler remove it
+                logging.error(f"{addr}: {e}")
 
     def add(self, addr: str, writer: asyncio.StreamWriter):
         self.writers[addr] = writer
@@ -105,9 +110,24 @@ async def process_frames(frame_q: asyncio.Queue[bytes], fanout: Fanout):
 async def amain():
     logging.basicConfig(level=logging.INFO)
 
+    main_task = asyncio.current_task()
+    assert main_task is not None
+    loop = asyncio.get_running_loop()
+
+    loop.add_signal_handler(signal.SIGINT, main_task.cancel)
+    loop.add_signal_handler(signal.SIGTERM, main_task.cancel)
+
+    def unhandled(_loop: AbstractEventLoop, _context: Any):
+        _loop.default_exception_handler(_context)
+        main_task.cancel()
+
+    loop.set_exception_handler(unhandled)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", metavar="config_path", type=Path, default=default_config_path)
     parser.add_argument("-d", action="store_true", help="debug")
+    parser.add_argument("-s", metavar="set", action="append", default=[])
+    parser.add_argument("-S", metavar="set_eval", action="append", default=[])
     args = parser.parse_args()
 
     config_data: dict[str, Any]
@@ -117,12 +137,13 @@ async def amain():
         config_data = {}
     if args.d:
         config_data["loglevel"] = "DEBUG"
+    for key, value in [e.split("=", 1) for e in args.s]:
+        config_data[key] = value
+    for key, value in [e.split("=", 1) for e in args.S]:
+        config_data[key] = eval(value, None, None)
     config = Config.from_data(config_data)
     logging.root.setLevel(config.loglevel)
     logging.debug(f"config_data: {config_data}")
-
-    main_task = asyncio.current_task()
-    assert main_task is not None
 
     frame_q = asyncio.Queue[bytes]()
     fanout = Fanout()
@@ -153,4 +174,7 @@ async def amain():
 
 
 def main():
-    asyncio.run(amain())
+    try:
+        asyncio.run(amain())
+    except CancelledError:
+        logging.info("Cancelled")
