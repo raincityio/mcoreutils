@@ -83,7 +83,7 @@ async def subscribe(meshcore: MeshCore, *, xfilter: Optional[str] = None):
         subscription.unsubscribe()
 
 
-async def remove_contact(meshcore: MeshCore, *, public_key: Optional[str] = None, name: Optional[str] = None):
+async def resolve_public_key(meshcore: MeshCore, *, public_key: Optional[str] = None, name: Optional[str] = None):
     if name is not None:
         await meshcore.ensure_contacts()
         contact = meshcore.get_contact_by_name(name)
@@ -91,10 +91,20 @@ async def remove_contact(meshcore: MeshCore, *, public_key: Optional[str] = None
             raise Exception(f"Unknown contact: {name}")
         public_key = contact["public_key"]
         assert public_key is not None
-        return await meshcore.commands.remove_contact(public_key)
+        return public_key
     if public_key is not None:
-        return await meshcore.commands.remove_contact(public_key)
-    raise Exception("Missing contact key")
+        return public_key
+    raise Exception("Missing destination key")
+
+
+async def send_msg(meshcore: MeshCore, message: str, *, public_key: Optional[str] = None, name: Optional[str] = None):
+    public_key = await resolve_public_key(meshcore, public_key=public_key, name=name)
+    return await meshcore.commands.send_msg(public_key, message)
+
+
+async def remove_contact(meshcore: MeshCore, *, public_key: Optional[str] = None, name: Optional[str] = None):
+    public_key = await resolve_public_key(meshcore, public_key=public_key, name=name)
+    return await meshcore.commands.remove_contact(public_key)
 
 
 async def amain():
@@ -113,6 +123,13 @@ async def amain():
     subparsers.add_parser("self-info")
     subparsers.add_parser("reboot")
     subparsers.add_parser("get-contacts")
+    subparser = subparsers.add_parser("send-msg")
+    subparser.add_argument("-n", metavar="name")
+    subparser.add_argument("--public-key")
+    subparser.add_argument("-m", metavar="message", required=True)
+    subparser = subparsers.add_parser("export-contact")
+    subparser = subparsers.add_parser("import-contact")
+    subparser.add_argument("--uri", required=True)
     args = parser.parse_args()
 
     config_data: dict[str, Any]
@@ -154,6 +171,22 @@ async def amain():
     elif args.command == "get-contacts":
         meshcore = await get_meshcore()
         jout(await meshcore.commands.get_contacts())
+    elif args.command == "send-msg":
+        meshcore = await get_meshcore()
+        jout(await send_msg(meshcore, message=args.m, public_key=args.public_key, name=args.n))
+    elif args.command == "export-contact":
+        meshcore = await get_meshcore()
+        contact = await meshcore.commands.export_contact()
+        jout(contact)
+    elif args.command == "import-contact":
+        meshcore = await get_meshcore()
+        uri = args.uri
+        if uri.startswith("meshcore://"):
+            card_data = bytes.fromhex(uri[11:])
+            result = await meshcore.commands.import_contact(card_data)  # pyright: ignore [reportUnknownMemberType]
+            jout(result)
+        else:
+            raise Exception()
     else:
         raise Exception(f"Unknown command: {args.command}")
 
