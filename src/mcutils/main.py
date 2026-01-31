@@ -25,6 +25,7 @@ default_mc_endpoint = (
 class Config:
     mc_endpoint: tuple[str, int] = default_mc_endpoint
     loglevel: int = logging.INFO
+    subscribe_resolve_event: bool = True
 
     @staticmethod
     def from_data(data: dict[str, Any]):
@@ -61,7 +62,7 @@ async def resolve_event(event: Event):
     return event
 
 
-async def subscribe(meshcore: MeshCore, *, xfilter: Optional[str] = None):
+async def subscribe(config: Config, meshcore: MeshCore, *, xfilter: Optional[str] = None):
     event_q = asyncio.Queue[Event]()
 
     def callback(_event: Event):
@@ -71,7 +72,8 @@ async def subscribe(meshcore: MeshCore, *, xfilter: Optional[str] = None):
     try:
         while True:
             event = await event_q.get()
-            event = await resolve_event(event)
+            if config.subscribe_resolve_event:
+                event = await resolve_event(event)
             if xfilter:
                 env = {"event": event, "EventType": EventType}
                 valid = eval(xfilter, None, env)
@@ -97,6 +99,22 @@ async def resolve_public_key(meshcore: MeshCore, *, public_key: Optional[str] = 
     raise Exception("Missing destination key")
 
 
+async def resolve_channel_idx(meshcore: MeshCore, *, channel_idx: Optional[int] = None, channel_name: Optional[str] = None):
+    if channel_idx is not None:
+        return channel_idx
+    assert channel_name is not None
+    i = 0
+    while i <= 10:
+        channel = await meshcore.commands.get_channel(i)
+        test_channel_name = channel.payload["channel_name"]
+        if test_channel_name == "":
+            break
+        if test_channel_name == channel_name:
+            return channel.payload["channel_idx"]
+        i += 1
+    return None
+
+
 async def send_msg(meshcore: MeshCore, message: str, *, public_key: Optional[str] = None, name: Optional[str] = None):
     public_key = await resolve_public_key(meshcore, public_key=public_key, name=name)
     return await meshcore.commands.send_msg(public_key, message)
@@ -113,22 +131,35 @@ async def amain():
     parser.add_argument("-c", metavar="config_path", type=Path, default=default_config_path)
     parser.add_argument("-d", action="store_true", help="enable debug")
     subparsers = parser.add_subparsers(dest="command")
-    subparser = subparsers.add_parser("create-map")
+    subparser = subparsers.add_parser("create-map", help="Create an html map of device contact locations")
     subparser.add_argument("-o", metavar="output_path", type=Path, help="Output file path", required=True)
-    subparser = subparsers.add_parser("subscribe")
+    subparser = subparsers.add_parser("subscribe", help="Subscribe to device events")
     subparser.add_argument("--xfilter")
-    subparser = subparsers.add_parser("remove-contact")
+    subparser = subparsers.add_parser("remove-contact", help="Remove a contact from the device")
     subparser.add_argument("-n", metavar="name")
     subparser.add_argument("--public-key")
-    subparsers.add_parser("self-info")
+    subparsers.add_parser("self-info", help="Show information about the device")
     subparsers.add_parser("reboot")
-    subparsers.add_parser("get-contacts")
-    subparser = subparsers.add_parser("send-msg")
+    subparsers.add_parser("get-contacts", help="Get device contacts")
+    subparser = subparsers.add_parser("send-msg", help="Send a message")
     subparser.add_argument("-n", metavar="name")
     subparser.add_argument("--public-key")
     subparser.add_argument("-m", metavar="message", required=True)
-    subparser = subparsers.add_parser("export-contact")
-    subparser = subparsers.add_parser("import-contact")
+    subparsers.add_parser("get-msg", help="Get a message")
+    subparser = subparsers.add_parser("get-channel", help="Get channel info")
+    subparser.add_argument("--channel-name", metavar="channel_name", type=str)
+    subparser.add_argument("--channel-idx", metavar="channel_index", type=int)
+    subparser = subparsers.add_parser("send-chan-msg", help="Send a channel message")
+    subparser.add_argument("--channel-name", metavar="channel_name", type=str)
+    subparser.add_argument("--channel-idx", metavar="channel_index", type=int)
+    subparser.add_argument("-m", metavar="message", required=True)
+    subparser = subparsers.add_parser("set-channel", help="Set channel")
+    subparser.add_argument("--channel-idx", metavar="channel_index", type=int, required=True)
+    subparser.add_argument("--channel-name", metavar="channel_name", type=str, required=True)
+    subparser = subparsers.add_parser("export-contact", help="Export contact information")
+    subparser.add_argument("-n", metavar="name")
+    subparser.add_argument("--public-key")
+    subparser = subparsers.add_parser("import-contact", help="Import contact information")
     subparser.add_argument("--uri", required=True)
     args = parser.parse_args()
 
@@ -158,7 +189,7 @@ async def amain():
         await create_map(meshcore, output_path=args.o)
     elif args.command == "subscribe":
         meshcore = await get_meshcore()
-        await subscribe(meshcore, xfilter=args.xfilter)
+        await subscribe(config, meshcore, xfilter=args.xfilter)
     elif args.command == "remove-contact":
         meshcore = await get_meshcore()
         jout(await remove_contact(meshcore, public_key=args.public_key, name=args.n))
@@ -174,15 +205,38 @@ async def amain():
     elif args.command == "send-msg":
         meshcore = await get_meshcore()
         jout(await send_msg(meshcore, message=args.m, public_key=args.public_key, name=args.n))
+    elif args.command == "get-msg":
+        meshcore = await get_meshcore()
+        jout(await meshcore.commands.get_msg())
+    elif args.command == "send-chan-msg":
+        meshcore = await get_meshcore()
+        channel_idx = await resolve_channel_idx(meshcore, channel_name=args.channel_name, channel_idx=args.channel_idx)
+        if channel_idx is None:
+            raise Exception(f"Channel not found")
+        jout(await meshcore.commands.send_chan_msg(channel_idx, args.m))  # pyright: ignore [reportUnknownMemberType]
+    elif args.command == "set-channel":
+        meshcore = await get_meshcore()
+        jout(await meshcore.commands.set_channel(args.channel_idx, args.channel_name))
+    elif args.command == "get-channel":
+        meshcore = await get_meshcore()
+        channel_idx = await resolve_channel_idx(meshcore, channel_name=args.channel_name, channel_idx=args.channel_idx)
+        if channel_idx is None:
+            raise Exception(f"Channel not found")
+        jout(await meshcore.commands.get_channel(channel_idx))
     elif args.command == "export-contact":
         meshcore = await get_meshcore()
-        contact = await meshcore.commands.export_contact()
+        if args.public_key or args.n:
+            public_key = await resolve_public_key(meshcore, public_key=args.public_key, name=args.n)
+        else:
+            public_key = None
+        contact = await meshcore.commands.export_contact(key=public_key)
         jout(contact)
     elif args.command == "import-contact":
         meshcore = await get_meshcore()
         uri = args.uri
-        if uri.startswith("meshcore://"):
-            card_data = bytes.fromhex(uri[11:])
+        meshcore_uri_prefix = "meshcore://"
+        if uri.startswith(meshcore_uri_prefix):
+            card_data = bytes.fromhex(uri[len(meshcore_uri_prefix) :])
             result = await meshcore.commands.import_contact(card_data)  # pyright: ignore [reportUnknownMemberType]
             jout(result)
         else:
