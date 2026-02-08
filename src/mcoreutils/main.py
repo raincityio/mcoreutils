@@ -20,6 +20,7 @@ default_mc_endpoint = (
     "localhost",
     1234,
 )
+MAX_CHANNEL_IDX = 40
 
 
 class MeshCoreDriver(enum.Enum):
@@ -112,7 +113,7 @@ async def resolve_channel_idx(meshcore: MeshCore, *, channel_idx: Optional[int] 
         return channel_idx
     assert channel_name is not None
     i = 0
-    while i <= 10:
+    while i <= MAX_CHANNEL_IDX:
         channel = await meshcore.commands.get_channel(i)
         test_channel_name = channel.payload["channel_name"]
         if test_channel_name == "":
@@ -165,8 +166,9 @@ async def amain():
     subparser.add_argument("--channel-idx", metavar="channel_index", type=int, required=True)
     subparser.add_argument("--channel-name", metavar="channel_name", type=str, required=True)
     subparser = subparsers.add_parser("remove-channel", help="Remove channel")
-    subparser.add_argument("--channel-idx", metavar="channel_index", type=int, required=True)
-    subparser = subparsers.add_parser("get-channels", help="Get channels")
+    subparser.add_argument("--channel-name", metavar="channel_name", type=str)
+    subparser.add_argument("--channel-idx", metavar="channel_index", type=int)
+    subparsers.add_parser("get-channels", help="Get channels")
     subparser = subparsers.add_parser("export-contact", help="Export contact information")
     subparser.add_argument("-n", metavar="name")
     subparser.add_argument("--public-key")
@@ -242,14 +244,17 @@ async def amain():
     elif args.command == "get-channels":
         meshcore = await get_meshcore()
         channels: list[Event] = []
-        for i in range(40):
+        for i in range(MAX_CHANNEL_IDX):
             channel = await meshcore.commands.get_channel(i)
             if channel.payload["channel_name"] != "":
                 channels.append(channel)
         jout(channels)
     elif args.command == "remove-channel":
         meshcore = await get_meshcore()
-        await meshcore.commands.set_channel(args.channel_idx, "", bytes.fromhex(16 * "00"))
+        channel_idx = await resolve_channel_idx(meshcore, channel_name=args.channel_name, channel_idx=args.channel_idx)
+        if channel_idx is None:
+            raise Exception(f"Channel not found")
+        await meshcore.commands.set_channel(channel_idx, "", bytes.fromhex(16 * "00"))
     elif args.command == "export-contact":
         meshcore = await get_meshcore()
         if args.public_key or args.n:
