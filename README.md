@@ -36,17 +36,17 @@ See examples for example configurations.
 To run mcore-cli against a specific device
 
 ```bash
-~/mcoreutils/bin/mcoreutils -c ~/mcoreutils-heltec.yml self-info
+~/mcoreutils/bin/mcore-cli -c ~/mcoreutils-heltec.yml self-info
 ```
 
 Create a map from the contacts on your device
 
 ```bash
-~/mcoreutils/bin/mcoreutils create-map -o /tmp/map.html
+~/mcoreutils/bin/mcore-cli create-map -o /tmp/map.html
 ```
 
 To run a tcpserver over a serial device
 
 ```bash
-~/mcoreutils/bin/mc-serial-tcp-server -c ~/tcpserver.yml
+~/mcoreutils/bin/mcore-tcp-bridge -c ~/tcpserver.yml
 ```
