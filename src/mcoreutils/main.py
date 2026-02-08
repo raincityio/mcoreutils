@@ -13,9 +13,9 @@ import yaml
 from meshcore import MeshCore, EventType
 from meshcore.events import Event
 
-from mcutils.common import jout
+from mcoreutils.common import jout
 
-default_config_path = platformdirs.user_config_path("mcutils.yaml")
+default_config_path = platformdirs.user_config_path("mcoreutils.yaml")
 default_mc_endpoint = (
     "localhost",
     1234,

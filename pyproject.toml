@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcutils"
+name = "mcoreutils"
 version = "0.1"
 authors = [
     { name = "Drew Gochenaur" }
@@ -18,8 +18,8 @@ dependencies = [
 ]
 
 [project.scripts]
-mcutils = "mcutils.main:main"
-mc-serial-tcp-server = "mcutils.serial_tcp_server:main"
+mcore-cli = "mcoreutils.main:main"
+mcore-tcp-bridge = "mcoreutils.tcp_bridge:main"
 
 [tool.black]
 line-length = 160

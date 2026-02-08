@@ -1,4 +1,4 @@
-# mcutils
+# mcoreutils
 
 Collection of utilities for meshcore.
 
@@ -10,8 +10,8 @@ commands.
 
 ## Features
 
-- mcutils: CLI utility for basic meshcore commands and map creator.
-- mc-serial-tcp-server: tcp server for proxying meshcore serial devices.
+- mcore-cli: CLI utility for basic meshcore commands and map creator.
+- mcore-tcp-bridge: tcp server for proxying meshcore serial devices.
     - I wrote this so I could use a serial meshcore device amongst multiple processes.
 
 ## Installation
@@ -23,8 +23,8 @@ commands.
 ### Install
 
 ```bash
-python3 -mvenv ~/mcutils
-~/mcutils/bin/pip install .
+python3 -mvenv ~/mcoreutils
+~/mcoreutils/bin/pip install .
 ```
 
 ## Configuration
@@ -33,14 +33,14 @@ See examples for example configurations.
 
 ## Example
 
-To run mcutils against a specific device
+To run mcore-cli against a specific device
 
 ```bash
-~/mcutils/bin/mcutils -c ~/mcutils-heltec.yml self-info
+~/mcoreutils/bin/mcoreutils -c ~/mcoreutils-heltec.yml self-info
 ```
 
 To run a tcpserver over a serial device
 
 ```bash
-~/mcutils/bin/mc-serial-tcp-server -c ~/tcpserver.yml
+~/mcoreutils/bin/mc-serial-tcp-server -c ~/tcpserver.yml
 ```

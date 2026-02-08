@@ -11,7 +11,7 @@ import platformdirs
 import yaml
 from meshcore import SerialConnection
 
-default_config_path = platformdirs.user_config_path("mcutils.tcp_server.yaml")
+default_config_path = platformdirs.user_config_path("mcoreutils.tcp_server.yaml")
 default_host = "localhost"
 default_port = 1234
 SIGNATURE = b"\x01\x03      mccli"
