@@ -1,0 +1,9 @@
+#serial_device_path: Path
+serial_device_path: /dev/cu.usbmodem141101
+#host: str = default_host
+#port: int = default_port
+#baudrate: int = 115200
+#loglevel: int = logging.INFO
+## To protect the device packet flow, check that the initial
+## packet looks as expected.
+#check_signature: bool = True

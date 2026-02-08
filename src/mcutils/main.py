@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import dataclasses
+import enum
 import logging
 from pathlib import Path
 from typing import Any, Optional
@@ -21,8 +22,15 @@ default_mc_endpoint = (
 )
 
 
+class MeshCoreDriver(enum.Enum):
+    TCP = "tcp"
+    SERIAL = "serial"
+
+
 @dataclasses.dataclass(frozen=True)
 class Config:
+    driver: MeshCoreDriver = MeshCoreDriver.TCP
+    serial_device_path: Optional[Path] = None
     mc_endpoint: tuple[str, int] = default_mc_endpoint
     loglevel: int = logging.INFO
     subscribe_resolve_event: bool = True
@@ -156,6 +164,9 @@ async def amain():
     subparser = subparsers.add_parser("set-channel", help="Set channel")
     subparser.add_argument("--channel-idx", metavar="channel_index", type=int, required=True)
     subparser.add_argument("--channel-name", metavar="channel_name", type=str, required=True)
+    subparser = subparsers.add_parser("remove-channel", help="Remove channel")
+    subparser.add_argument("--channel-idx", metavar="channel_index", type=int, required=True)
+    subparser = subparsers.add_parser("get-channels", help="Get channels")
     subparser = subparsers.add_parser("export-contact", help="Export contact information")
     subparser.add_argument("-n", metavar="name")
     subparser.add_argument("--public-key")
@@ -178,9 +189,14 @@ async def amain():
     assert main_task is not None
 
     async def get_meshcore():
-        return await MeshCore.create_tcp(  # pyright: ignore [reportUnknownMemberType]
-            config.mc_endpoint[0], config.mc_endpoint[1], auto_reconnect=True, max_reconnect_attempts=999
-        )
+        if config.driver == MeshCoreDriver.TCP:
+            return await MeshCore.create_tcp(  # pyright: ignore [reportUnknownMemberType]
+                config.mc_endpoint[0], config.mc_endpoint[1], auto_reconnect=True, max_reconnect_attempts=999
+            )
+        elif config.driver == MeshCoreDriver.SERIAL:
+            return await MeshCore.create_serial(str(config.serial_device_path))  # pyright: ignore [reportUnknownMemberType]
+        else:
+            raise Exception(f"Unknown driver {config.driver}")
 
     if args.command is None:
         parser.print_help()
@@ -223,6 +239,17 @@ async def amain():
         if channel_idx is None:
             raise Exception(f"Channel not found")
         jout(await meshcore.commands.get_channel(channel_idx))
+    elif args.command == "get-channels":
+        meshcore = await get_meshcore()
+        channels: list[Event] = []
+        for i in range(40):
+            channel = await meshcore.commands.get_channel(i)
+            if channel.payload["channel_name"] != "":
+                channels.append(channel)
+        jout(channels)
+    elif args.command == "remove-channel":
+        meshcore = await get_meshcore()
+        await meshcore.commands.set_channel(args.channel_idx, "", bytes.fromhex(16 * "00"))
     elif args.command == "export-contact":
         meshcore = await get_meshcore()
         if args.public_key or args.n:

@@ -1,0 +1,6 @@
+# driver: MeshCoreDriver = "tcp" | "serial"
+# mc_endpoint: tuple[str, int] = default_mc_endpoint
+mc_endpoint: [ koopa.elisha.raincity.io, 5678 ]
+# serial_device_path: Optional[Path] = None
+# loglevel: int = logging.INFO
+# subscribe_resolve_event: bool = True
