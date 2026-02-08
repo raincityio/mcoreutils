@@ -43,6 +43,10 @@ class Config:
             kwargs["loglevel"] = logging.getLevelName(data["loglevel"])  # pyright: ignore [reportDeprecated]
         if "mc_endpoint" in data:
             kwargs["mc_endpoint"] = tuple(data["mc_endpoint"])
+        if "serial_device_path" in data:
+            kwargs["serial_device_path"] = Path(data["serial_device_path"])
+        if "driver" in data:
+            kwargs["driver"] = MeshCoreDriver(data["driver"])
         return Config(**kwargs)
 
 

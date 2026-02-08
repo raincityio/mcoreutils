@@ -35,6 +35,8 @@ class Config:
             kwargs["loglevel"] = logging.getLevelName(data["loglevel"])  # pyright: ignore [reportDeprecated]
         if "listen" in data:
             kwargs["listen"] = tuple(data["listen"])
+        if "serial_device_path" in data:
+            kwargs["serial_device_path"] = Path(kwargs["serial_device_path"])
         return Config(**kwargs)
 
 
