@@ -39,6 +39,12 @@ To run mcore-cli against a specific device
 ~/mcoreutils/bin/mcoreutils -c ~/mcoreutils-heltec.yml self-info
 ```
 
+Create a map from the contacts on your device
+
+```bash
+~/mcoreutils/bin/mcoreutils create-map -o /tmp/map.html
+```
+
 To run a tcpserver over a serial device
 
 ```bash
