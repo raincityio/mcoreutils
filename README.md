@@ -30,3 +30,17 @@ python3 -mvenv ~/mcutils
 ## Configuration
 
 See examples for example configurations.
+
+## Example
+
+To run mcutils against a specific device
+
+```bash
+~/mcutils/bin/mcutils -c ~/mcutils-heltec.yml self-info
+```
+
+To run a tcpserver over a serial device
+
+```bash
+~/mcutils/bin/mc-serial-tcp-server -c ~/tcpserver.yml
+```
