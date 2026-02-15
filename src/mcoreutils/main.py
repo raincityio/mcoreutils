@@ -178,6 +178,8 @@ async def amain():
     subparser.add_argument("--public-key")
     subparser = subparsers.add_parser("import-contact", help="Import contact information")
     subparser.add_argument("--uri", required=True)
+    subparser = subparsers.add_parser("send-advert", help="Send advertisement")
+    subparser.add_argument("--flood", action="store_true")
     args = parser.parse_args()
 
     config_data: dict[str, Any]
@@ -277,6 +279,9 @@ async def amain():
             jout(result)
         else:
             raise Exception()
+    elif args.command == "send-advert":
+        meshcore = await get_meshcore()
+        jout(await meshcore.commands.send_advert(flood=args.flood))
     else:
         raise Exception(f"Unknown command: {args.command}")
 
